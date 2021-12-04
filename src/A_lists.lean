@@ -214,22 +214,22 @@ def foldr {α β : Sort _} (g : α → β → β) (z : β) : llist α → β
 | llist.nil := z
 | (llist.cons x xs) := g x (foldr xs)
 
--- TODO: What's up with the type universes here? Why does it work as long as γ
--- is in the same universe as *either* of α or β (but not if it's in an entirely
--- different one)?
--- (Also note that we need α and β to be in different universes since we're proving
--- equivalence with foldr, which allows for this.)
-universe u
-
 -- ### 1.4.1 `foldr_cps`
 -- A partial-CPS right fold: the result is returned via a continuation, but the
 -- argument g is in direct style
 
-def foldr_cps {α : Sort _} {β γ : Sort u} (g : α → β → β) (z : β) : llist α → (β → γ) → γ
-| llist.nil k := k z
-| (llist.cons x xs) k := foldr_cps xs (λz', k (g x z'))
+-- Unfortunately, some compilation issues in Lean prevent this version from working
+-- (we'd need to needlessly restrict β and γ to the same universe):
+-- def foldr_cps {α β γ : Sort _} (g : α → β → β) (z : β) : llist α → (β → γ) → γ
+-- | llist.nil k := k z
+-- | (llist.cons x xs) k := foldr_cps xs (λz', k (g x z'))
 
-lemma foldr_cps_equiv_foldr {α : Sort _} {β γ : Sort u} :
+def foldr_cps {α β γ : Sort _} (g : α → β → β) (z : β) (l : llist α) : (β → γ) → γ :=
+@llist.rec_on α (λ _, (β → γ) → γ) l
+(λk, k z)
+(λx xs r k, r (λ z', k (g x z')))
+
+lemma foldr_cps_equiv_foldr {α β γ : Sort _} :
   ∀ (g : α → β → β) (z : β) (xs : llist α) (k : β → γ),
     foldr_cps g z xs k = k (foldr g z xs) :=
 begin
@@ -251,11 +251,18 @@ end
 
 -- ### 1.4.2 `foldr_full_cps`
 -- A full-CPS right fold: both g and the fold function are in CPS
-def foldr_full_cps {α : Sort _} {β γ : Sort u} (g : α → β → (β → γ) → γ) (z : β) : llist α → (β → γ) → γ
-| llist.nil k := k z
-| (llist.cons x xs) k := foldr_full_cps xs (λz', g x z' (λz'', k z''))
 
-lemma foldr_full_cps_equiv_foldr {α : Sort _} {β γ : Sort u} :
+-- Same issue as above
+-- def foldr_full_cps {α β γ : Sort _} (g : α → β → (β → γ) → γ) (z : β) : llist α → (β → γ) → γ
+-- | llist.nil k := k z
+-- | (llist.cons x xs) k := foldr_full_cps xs (λz', g x z' (λz'', k z''))
+
+def foldr_full_cps {α β γ : Sort _} (g : α → β → (β → γ) → γ) (z : β) (l : llist α) : (β → γ) → γ :=
+@llist.rec_on α (λ _, (β → γ) → γ) l
+(λk, k z)
+(λx xs r k, r (λz', g x z' (λz'', k z'')))
+
+lemma foldr_full_cps_equiv_foldr {α β γ : Sort _} :
   ∀ (g : α → β → β) (z : β) (xs : llist α) (k : β → γ),
     foldr_full_cps (λa b k, k (g a b)) z xs k = k (foldr g z xs) :=
 begin

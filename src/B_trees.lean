@@ -1,5 +1,5 @@
 import tactic.induction
-import tactic.ring_exp
+import tactic.ring_exp  -- for split_ifs
 import .A_lists
 
 /-
@@ -47,8 +47,6 @@ begin
     intro k,
     rw inord_cps,
     rw (ihl (λ (ll : llist α), r.inord_cps (λ (lr : llist α), ll.append_cps (llist.cons x lr) k))),
-    -- TODO: is there a better/more specific tactic just to do beta-reduction?
-    -- (If so, change *all* occurrences of "dsimp only.")
     dsimp only,  -- perform β-reduction
     rw (ihr (λ (lr : llist α), l.inord.append_cps (llist.cons x lr) k)),
     dsimp only,
@@ -64,13 +62,24 @@ def fold {α β : Sort _} (f : α → β → β → β) (z : β) : tree α → �
 | (tree.node x l r) := f x (fold l) (fold r)
 
 universe u
--- TODO: again, what's up with folds and universes? (Same thing as with list fold)
-def fold_cps {α : Sort _} {β γ : Sort u} (f : α → β → β → (β → γ) → γ) (z : β) :
-    tree α → (β → γ) → γ
-| tree.empty k := k z
-| (tree.node x l r) k := fold_cps l (λxl, fold_cps r (λxr, f x xl xr k))
+-- This has the same issue as the list foldr regarding type universes
+-- def fold_cps {α : Sort _} {β γ : Sort u} (f : α → β → β → (β → γ) → γ) (z : β) :
+--     tree α → (β → γ) → γ
+-- | tree.empty k := k z
+-- | (tree.node x l r) k := fold_cps l (λxl, fold_cps r (λxr, f x xl xr k))
 
-lemma fold_cps_equiv_fold {α : Sort _} {β γ : Sort u} :
+def fold_cps {α β γ : Sort _} (f : α → β → β → (β → γ) → γ) (z : β) (t : tree α) :
+    (β → γ) → γ :=
+@tree.rec_on α (λ _, (β → γ) → γ) t
+(λk, k z)
+(λx l r lrec rrec k, lrec (λxl, rrec (λxr, f x xl xr k)))
+
+-- Since using the recursor manually doesn't generate equation lemmas, we must
+-- provide them manually
+lemma fold_cps_eqn {α β γ : Sort _} (f : α → β → β → (β → γ) → γ) (z : β) (x l r) (k : β → γ) :
+  fold_cps f z (tree.node x l r) k = fold_cps f z l (λxl, fold_cps f z r (λxr, f x xl xr k)) := rfl
+
+lemma fold_cps_equiv_fold {α β γ : Sort _} :
   ∀ (f : α → β → β → β) (z : β) (t : tree α) (k : β → γ),
     fold_cps (λx l r k, k (f x l r)) z t k = k (fold f z t) :=
 begin
@@ -83,7 +92,7 @@ begin
   case node : x l r ihl ihr {
     intro k,
     let f_cps := (λ(x : α) (l : β) (r : β) (k : β → γ), k (f x l r)),
-    rw fold_cps,
+    rw fold_cps_eqn,  -- would be "rw fold_cps" if we'd defined fold_cps normally
     rw (ihl f z (λxl, fold_cps f_cps z r (λxr, f_cps x xl xr k))),
     -- per the guidance at https://leanprover-community.github.io/extras/simp.html,
     -- we avoid simp in the middle of a proof; this is merely to achieve β-reduction
