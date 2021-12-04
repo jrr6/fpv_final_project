@@ -57,7 +57,8 @@ lemma const_cps_equiv_const {β : Type _} :
 
 lemma cons_cps_equiv_cons {α β : Type _} :
   ∀ (s_cps : @stream_cps α β) (s : stream α) (x : α),
-  stream_equiv s_cps s ↔ stream_equiv (stream_cps.cons x s_cps) (stream.cons x s) :=
+  stream_equiv s_cps s ↔
+    stream_equiv (stream_cps.cons x s_cps) (stream.cons x s) :=
 begin
   intros s_cps s x,
   apply iff.intro,
@@ -84,7 +85,8 @@ end
 
 lemma drop_cps_equiv_drop {α β : Type _} :
   ∀ (s_cps : @stream_cps α β) (s : stream α) (n : ℕ),
-    stream_equiv s_cps s → stream_equiv (stream_cps.drop n s_cps) (stream.drop n s) :=
+    stream_equiv s_cps s →
+      stream_equiv (stream_cps.drop n s_cps) (stream.drop n s) :=
 begin
   intros s_cps s n,
   {
@@ -100,7 +102,8 @@ end
 lemma drop_equiv_not_bicond :
   -- TODO: why can't it be `Type _`?
   ¬(∀ α β : Type, ∀ (s_cps : @stream_cps α β) (s : stream α) (n : ℕ),
-    stream_equiv (stream_cps.drop n s_cps) (stream.drop n s) → stream_equiv s_cps s) :=
+    stream_equiv (stream_cps.drop n s_cps) (stream.drop n s)
+      → stream_equiv s_cps s) :=
 begin
   intro h,
   let s_cps := @stream_cps.cons ℕ ℕ 4 (stream_cps.const 3),

@@ -38,7 +38,8 @@ def append_cps {α β : Sort _} : llist α → llist α → (llist α → β) �
 | (llist.cons x xs) ys k := append_cps xs ys (λas, k (llist.cons x as))
 
 lemma append_cps_equiv_append {α β : Sort _} :
-  ∀ (xs ys : llist α) (k : llist α → β), append_cps xs ys k = k (append xs ys) :=
+  ∀ (xs ys : llist α) (k : llist α → β),
+    append_cps xs ys k = k (append xs ys) :=
 begin
   intros xs ys,
   induction' xs,
@@ -50,7 +51,8 @@ begin
     intro k,
     calc append_cps (llist.cons x xs) ys k
          = append_cps xs ys (λas, k (llist.cons x as)) : rfl
-     ... = (λas, k (llist.cons x as)) (append xs ys) : ih ys (λas, k (llist.cons x as))
+     ... = (λas, k (llist.cons x as)) (append xs ys) : ih ys (λas, k
+                                                              (llist.cons x as))
      ... = k (llist.cons x (append xs ys)) : rfl
      ... = k (append (llist.cons x xs) ys) : rfl
   }
@@ -70,7 +72,8 @@ def map_cps {α β γ : Sort _} (f : α → β) : llist α → (llist β → γ)
 | (llist.cons x xs) k := map_cps xs (λxs', k (llist.cons (f x) xs'))
 
 lemma map_cps_equiv_map {α β γ : Sort _} :
-  ∀ (f : α → β) (xs : llist α) (k : llist β → γ), map_cps f xs k = k (map f xs) :=
+  ∀ (f : α → β) (xs : llist α) (k : llist β → γ),
+    map_cps f xs k = k (map f xs) :=
 begin
   intros f xs,
   -- The key is to induct *without* binding k!
@@ -83,7 +86,8 @@ begin
     intro k,
     calc map_cps f (llist.cons x xs) k
          = map_cps f xs (λxs', k (llist.cons (f x) xs')) : rfl
-     ... = (λxs', k (llist.cons (f x) xs')) (map f xs) : ih f (λxs', k (llist.cons (f x) xs'))
+     ... = (λxs', k (llist.cons (f x) xs')) (map f xs) : ih f (λxs', k
+                                                         (llist.cons (f x) xs'))
      ... = k (llist.cons (f x) (map f xs)) : rfl
      ... = k (map f (llist.cons x xs)) : by rw ←map
   }
@@ -118,8 +122,10 @@ begin
     intro k,
     let f_cps := (λx (kf : β → γ), kf (f x)),
     calc map_full_cps f_cps (llist.cons x xs) k
-         = map_full_cps f_cps xs (λxs', f_cps x (λx', k (llist.cons x' xs'))) : rfl
-     ... = (λxs', f_cps x (λx', k (llist.cons x' xs'))) (map f xs) : by apply ih -- to avoid having to rewrite f_cps
+         = map_full_cps f_cps xs (λxs', f_cps x (λx', k (llist.cons x' xs')))
+            : rfl
+         -- the below avoids having to rewrite f_cps
+     ... = (λxs', f_cps x (λx', k (llist.cons x' xs'))) (map f xs) : by apply ih
      ... = f_cps x (λx', k (llist.cons x' (map f xs))) : rfl
      -- The lines below are technically superfluous, but nonetheless reassuring
      ... = (λx', k (llist.cons x' (map f xs))) (f x) : rfl
@@ -163,10 +169,14 @@ begin
     intro k,
     resetI,  -- deal with decidability type-class synthesis issues
     calc filter_cps p (llist.cons x xs) k 
-         = filter_cps p xs (λxs', if p x then k (llist.cons x xs') else k xs') : rfl
-     ... = (λxs', if p x then k (llist.cons x xs') else k xs') (filter p xs) : by rw ih
-     ... = if p x then k (llist.cons x (filter p xs)) else k (filter p xs) : rfl
-     ... = k (if p x then llist.cons x (filter p xs) else filter p xs) : by apply ite_distro
+         = filter_cps p xs (λxs', if p x then k (llist.cons x xs') else k xs')
+            : rfl
+     ... = (λxs', if p x then k (llist.cons x xs') else k xs') (filter p xs)
+            : by rw ih
+     ... = if p x then k (llist.cons x (filter p xs)) else k (filter p xs)
+            : rfl
+     ... = k (if p x then llist.cons x (filter p xs) else filter p xs)
+            : by apply ite_distro
      ... = k (filter p (llist.cons x xs)) : by rw ←filter
   }
 end
@@ -176,10 +186,13 @@ end
 def filter_full_cps {α β : Sort _} (p : α → (unit → β) → (unit → β) → β) :
   llist α → (llist α → β) → β
 | llist.nil k := k llist.nil
-| (llist.cons x xs) k := filter_full_cps xs (λxs', p x (λ _, k (llist.cons x xs'))
-                                                       (λ _, k xs'))
+| (llist.cons x xs) k := filter_full_cps xs
+                                         (λxs', p x (λ _, k (llist.cons x xs'))
+                                         (λ _, k xs'))
 
-lemma filter_full_cps_equiv_filter {α β : Sort _} (p : α → Prop) [decidable_pred p] :
+lemma filter_full_cps_equiv_filter {α β : Sort _}
+                                   (p : α → Prop)
+                                   [decidable_pred p] :
   ∀ (xs : llist α) (k : llist α → β),
   filter_full_cps (λ (x : α) (sk : unit → β) (fk : unit → β),
                     if p x then sk () else fk ())
@@ -198,12 +211,17 @@ begin
     resetI,  -- deal with decidability type-class synthesis issues
     let p_cps := (λ (x : α) (sk fk : unit → β), if p x then sk () else fk ()),
     calc filter_full_cps p_cps (llist.cons x xs) k
-         = filter_full_cps p_cps xs (λxs', p_cps x (λ _, k (llist.cons x xs')) (λ _, k xs')) : rfl
-     ... = (λxs', p_cps x (λ _, k (llist.cons x xs')) (λ _, k xs')) (filter p xs) : by apply ih
-     ... = p_cps x (λ _, k (llist.cons x (filter p xs))) (λ _, k (filter p xs)) : rfl
-     ... = if p x then (λ _, k (llist.cons x (filter p xs))) () else (λ _, k (filter p xs)) () : rfl
+         = filter_full_cps p_cps xs (λxs', p_cps x (λ _,
+              k (llist.cons x xs')) (λ _, k xs')) : rfl
+     ... = (λxs', p_cps x (λ _, k (llist.cons x xs')) (λ _, k xs'))
+              (filter p xs) : by apply ih
+     ... = p_cps x (λ _, k (llist.cons x (filter p xs)))
+              (λ _, k (filter p xs)) : rfl
+     ... = if p x then (λ _, k (llist.cons x (filter p xs))) ()
+                  else (λ _, k (filter p xs)) () : rfl
      ... = if p x then k (llist.cons x (filter p xs)) else k (filter p xs) : rfl
-     ... = k (if p x then llist.cons x (filter p xs) else filter p xs) : by apply ite_distro
+     ... = k (if p x then llist.cons x (filter p xs) else filter p xs)
+              : by apply ite_distro
      ... = k (filter p (llist.cons x xs)) : rfl
   }
 end
@@ -218,13 +236,15 @@ def foldr {α β : Sort _} (g : α → β → β) (z : β) : llist α → β
 -- A partial-CPS right fold: the result is returned via a continuation, but the
 -- argument g is in direct style
 
--- Unfortunately, some compilation issues in Lean prevent this version from working
--- (we'd need to needlessly restrict β and γ to the same universe):
--- def foldr_cps {α β γ : Sort _} (g : α → β → β) (z : β) : llist α → (β → γ) → γ
+-- Unfortunately, some compilation issues in Lean prevent this version from
+-- working (we'd need to needlessly restrict β and γ to the same universe):
+-- def foldr_cps {α β γ : Sort _} (g : α → β → β) (z : β)
+--     : llist α → (β → γ) → γ
 -- | llist.nil k := k z
 -- | (llist.cons x xs) k := foldr_cps xs (λz', k (g x z'))
 
-def foldr_cps {α β γ : Sort _} (g : α → β → β) (z : β) (l : llist α) : (β → γ) → γ :=
+def foldr_cps {α β γ : Sort _} (g : α → β → β) (z : β) (l : llist α)
+  : (β → γ) → γ :=
 @llist.rec_on α (λ _, (β → γ) → γ) l
 (λk, k z)
 (λx xs r k, r (λ z', k (g x z')))
@@ -253,11 +273,14 @@ end
 -- A full-CPS right fold: both g and the fold function are in CPS
 
 -- Same issue as above
--- def foldr_full_cps {α β γ : Sort _} (g : α → β → (β → γ) → γ) (z : β) : llist α → (β → γ) → γ
+-- def foldr_full_cps {α β γ : Sort _} (g : α → β → (β → γ) → γ) (z : β)
+--     : llist α → (β → γ) → γ
 -- | llist.nil k := k z
 -- | (llist.cons x xs) k := foldr_full_cps xs (λz', g x z' (λz'', k z''))
 
-def foldr_full_cps {α β γ : Sort _} (g : α → β → (β → γ) → γ) (z : β) (l : llist α) : (β → γ) → γ :=
+def foldr_full_cps {α β γ : Sort _} (g : α → β → (β → γ) → γ)
+                                    (z : β)
+                                    (l : llist α) : (β → γ) → γ :=
 @llist.rec_on α (λ _, (β → γ) → γ) l
 (λk, k z)
 (λx xs r k, r (λz', g x z' (λz'', k z'')))
@@ -277,7 +300,9 @@ begin
     let g_cps := (λ(a : α) (b : β) (k : β → γ), k (g a b)),
     calc foldr_full_cps g_cps z (llist.cons x xs) k
          = foldr_full_cps g_cps z xs (λz', g_cps x z' (λz'', k z'')) : rfl
-     ... = (λz', g_cps x z' (λz'', k z'')) (foldr g z xs) : ih g z (λz', g_cps x z' (λz'', k z''))
+     ... = (λz', g_cps x z' (λz'', k z'')) (foldr g z xs) : ih g z (λz',
+                                                              g_cps x z'
+                                                              (λz'', k z''))
      ... = g_cps x (foldr g z xs) (λz'', k z'') : rfl
      ... = k (g x (foldr g z xs)) : rfl
      ... = k (foldr g z (llist.cons x xs)) : rfl
