@@ -47,7 +47,9 @@ begin
     intro k,
     rw inord_cps,
     rw (ihl (λ (ll : llist α), r.inord_cps (λ (lr : llist α), ll.append_cps (llist.cons x lr) k))),
-    dsimp only,  -- perform β-reduction
+    -- as advised by https://leanprover-community.github.io/extras/simp.html, we
+    -- avoid simp in the middle of a proof; this is merely to β-reduce
+    dsimp only,
     rw (ihr (λ (lr : llist α), l.inord.append_cps (llist.cons x lr) k)),
     dsimp only,
     rw llist.append_cps_equiv_append,
@@ -94,8 +96,6 @@ begin
     let f_cps := (λ(x : α) (l : β) (r : β) (k : β → γ), k (f x l r)),
     rw fold_cps_eqn,  -- would be "rw fold_cps" if we'd defined fold_cps normally
     rw (ihl f z (λxl, fold_cps f_cps z r (λxr, f_cps x xl xr k))),
-    -- per the guidance at https://leanprover-community.github.io/extras/simp.html,
-    -- we avoid simp in the middle of a proof; this is merely to achieve β-reduction
     dsimp only,
     rw (ihr f z (λ (xr : β), f_cps x (fold f z l) xr k)),
     refl,
@@ -126,7 +126,8 @@ def find {α : Sort _} (p : α → Prop) [decidable_pred p] : tree α → option
 def find_cps {α β : Sort _} (p : α → (unit → β) → (unit → β) → β) :
   tree α → (α → β) → (unit → β) → β
 | tree.empty sk fk := fk ()
-| (tree.node x l r) sk fk := p x (λ_, sk x) (λ_, find_cps l sk (λ_, find_cps r sk fk))
+| (tree.node x l r) sk fk := p x (λ_, sk x)
+                                 (λ_, find_cps l sk (λ_, find_cps r sk fk))
 
 /-
  This helper lemma is slightly more general than the equivalence we want to
@@ -137,7 +138,11 @@ def find_cps {α β : Sort _} (p : α → (unit → β) → (unit → β) → β
 -/
 lemma find_cps_equiv_find_helper {α : Sort _} (p : α → Prop) [decidable_pred p]  :
   ∀ (t : tree α) (fk : unit → option α),
-    find_cps (λx sk fk, if p x then sk () else fk ()) t some fk = (find p t <|> fk ()) :=
+    find_cps (λx sk fk, if p x then sk () else fk ())
+             t
+             some
+             fk
+    = (find p t <|> fk ()) :=
 begin
   intro t,
   induction' t,
@@ -150,6 +155,11 @@ begin
   case node : x l r ihl ihr {
     intro fk,
     rw find_cps,
+    -- Deal with bug in synthesis of decidability type-class by explicitly
+    -- resetting the index. Note that we need to do this here because otherwise
+    -- split_ifs is going to rely on classical.choice and a bunch of other
+    -- very non-constructive (and unnecessary) axioms
+    resetI,
     split_ifs,
     {
       -- case p x true
@@ -159,7 +169,6 @@ begin
     },
     {
       -- case p x false
-      resetI,  -- deal with bug in synthesis of decidability type-class
       rw (ihr p fk),
       rw (ihl p (λ (_x : unit), find p r <|> fk ())),
       rw find,
@@ -191,12 +200,17 @@ end
 -- We recover the desired equivalence as an instance of the helper
 lemma find_cps_equiv_find {α : Sort _} (p : α → Prop) [decidable_pred p]  :
   ∀ (t : tree α),
-    find_cps (λx sk fk, if p x then sk () else fk ()) t some (λ_, none) = find p t :=
+    find_cps (λx sk fk, if p x then sk () else fk ())
+             t
+             some
+             (λ_, none)
+    = find p t :=
 begin
   intro t,
   have h := find_cps_equiv_find_helper p t (λ_, none),
   unfold has_orelse.orelse at h,
-  have h_orelse : ∀(x : option α), option.orelse x none = x := λx, by cases' x; refl,
+  have h_orelse : ∀(x : option α), option.orelse x none = x :=
+    λx, by cases' x; refl,
   rw h_orelse at h,
   exact h,
 end
