@@ -97,14 +97,9 @@ end
 -- A full ("higher-order") CPS map: it returns via a continuation, and its
 -- function argument must also be in CPS
 def map_full_cps {α β γ : Sort _}
-  -- TODO: should we enforce parametricity of continuation over result type (since Lean, unlike SML, lets us)?
-  -- (f : ∀ {δ : Sort _}, α → (β → δ) → δ) : llist α → (llist β → γ) → γ
   (f : α → (β → γ) → γ) : llist α → (llist β → γ) → γ
 | llist.nil k := k llist.nil
 | (llist.cons x xs) k := map_full_cps xs (λxs', f x (λx', k (llist.cons x' xs')))
-
--- TODO: remove me!
-#check ∀ {α β δ : Sort _}, (∀ {γ : Sort _}, α → (β → γ) → γ) → llist α → (llist β → δ) → δ
 
 lemma map_full_cps_equiv_map {α β γ : Sort _} :
   ∀ (f : α → β)
