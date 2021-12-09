@@ -6,7 +6,7 @@ import .A_lists
 # 3. Streams
 We'll prove CPS equivalences for the following stream functions:
 * `map`
-* `filter`
+* `filter` TODO:
 
 We require that all stream functions be *maximally lazy*; that is, that they
 perform no computation until it is necessary to produce a requested value.
@@ -27,6 +27,48 @@ right!
 -- We begin by defining a type of CPS streams and a few basic operations
 -- thereupon
 def stream_cps (α : Type _) {β : Type _} := ℕ → (α → β) → β
+
+-- We implement a new rec_on that's in CPS
+def nat.rec_on_cps : Π {α : Sort _} {motive : ℕ → Sort _} (n : ℕ), motive 0 → (Π (n : ℕ), motive n → (motive n.succ → α) → α) → (motive n → α) → α
+| α motive 0 val0 fn_succ k := k val0
+| α motive (nat.succ n) val0 fn_succ k := nat.rec_on_cps n val0 fn_succ (λv_prev, fn_succ n v_prev k)
+
+#check @nat.rec_on
+/-
+For reference, here's the iterator in SML, which I think is actually a little
+easier to parse:
+```
+type ('a, 'b) stream_cps = int -> ('a -> 'b) -> 'b
+
+fun stream_cps_iterate (f : 'a -> ('a -> 'b) -> 'b)
+                       (a : 'a)
+                       (outer_k : ('a, 'b) stream_cps -> 'c) = outer_k
+(fn (n : int) => fn (k : 'a -> 'b) => let
+  val rec res = (fn 0 => (fn (k' : 'a -> 'b) => k' a)
+                  | n' => (fn (k' : 'a -> 'b) => res (n - 1)
+                                                  (fn (prev : 'a) => f prev k'))
+                )
+in
+  res n k
+end)
+```
+-/
+def stream_cps.iterate {α β γ : Type _} (f : α → (α → β) → β) (a : α) (outer_k : @stream_cps α β → γ) : γ :=
+-- TODO: Time to use rec_on_cps...
+outer_k (λ(n : ℕ) (k : α → β),
+  @nat.rec_on (λ_, (α → β) → β)
+              n
+              (λ (k' : α → β), k' a)
+              (λ (_ : ℕ) (r : (α → β) → β) (k' : α → β), r (λ(prev : α), f prev k'))
+              k  -- the motive type takes a continuation; we ultimately need to
+                 -- produce a β, so we use k to pass the value from the nat
+                 -- recursion to the stream caller
+)
+
+-- NOTE to self: corecursor defines way of constructing a stream (dual to recursor)
+def stream_cps.corec {α β γ : Type _} (f : α → (α → γ) → γ)
+                                      (g : α → (β → γ) → γ) : stream_cps β :=
+λn k, sorry
 
 def stream_cps.expose {α β : Type _} (s : stream_cps α) (k : α → β) : β := s 0 k
 
