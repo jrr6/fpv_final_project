@@ -262,7 +262,8 @@ lemma nat_rec_on_cps_equiv_nat_rec_on {α β : Sort _} :
     (el0 : mot 0)
     (f_succ : Π(n' : ℕ), mot n' → mot (nat.succ n'))
     (k : mot n → α),
-  k (@nat.rec_on mot n el0 f_succ) = nat.rec_on_cps n el0 (λn' x (k'), k' (f_succ n' x)) k
+  k (@nat.rec_on mot n el0 f_succ)
+    = nat.rec_on_cps n el0 (λn' x k', k' (f_succ n' x)) k
 :=
 begin
   intros mot n el0 f_succ k,
@@ -351,20 +352,89 @@ def stream_cps.cycle_g {α β : Type _} :
 def stream_cps.cycle {α β γ : Type _} :
   Π (l : list α), l ≠ [] → (@stream_cps α γ → β) → β
 | []              h := absurd rfl h
-| (list.cons a l) h := stream_cps.corec stream_cps.cycle_f stream_cps.cycle_g (a, l, a, l)
+| (list.cons a l) h := stream_cps.corec stream_cps.cycle_f
+                                        stream_cps.cycle_g
+                                        (a, l, a, l)
 
 -- Just to "prove" it all works:
 #eval @nat.rec_on (λ_, list ℕ)
                   20
                   []
                   (λn r, stream_cps.cycle [1, 9, 5, 1, 120]
-                                          (by simp)
+                                          (by apply list.no_confusion)
                                           (λs, s n (λel, r ++ [el])))
 
+-- FIXME: This is a terrible workaround
+-- Sadly, the Lean authors decided to make the implementation of `cycle` depend
+-- on some private functions that we can't write proofs about, so we have to
+-- rewrite our own version `cycle₂` with accessible definitions here (this is
+-- just a copy-paste from mathlib with the name of `cycle` switched to avoid
+-- conflicts)
+namespace stream
+variables {α : Type _}
+-- auxiliary def for cycle corecursive def
+def cycle_f : α × list α × α × list α → α
+| (v, _, _, _) := v
+
+-- auxiliary def for cycle corecursive def
+def cycle_g : α × list α × α × list α → α × list α × α × list α
+| (v₁, [],              v₀, l₀) := (v₀, l₀, v₀, l₀)
+| (v₁, list.cons v₂ l₂, v₀, l₀) := (v₂, l₂, v₀, l₀)
+
+def cycle₂ : Π (l : list α), l ≠ [] → stream α
+| []              h := absurd rfl h
+| (list.cons a l) h := corec cycle_f cycle_g (a, l, a, l)
+end stream
+
 -- And now to **prove** it all works...
-lemma cycle_cps_equiv_cycle {α β : Type _} :
-  ∀ (l : list α) (hl : l ≠ []) (k : stream_cps α → β), stream_cps.cycle l hl k
--- TODO: this
+-- (I finally have to break my "no-axioms" rule...to take advantage of the other
+-- lemmas, we have to use `funext` to substitute lambdas)
+lemma cycle_cps_equiv_cycle {α β γ : Type _} :
+  ∀ (l : list α) (hl : l ≠ []) (k : @stream_cps α β → γ) (k' : stream α → γ)
+    (hks : ∀(s : stream_cps α) (s' : stream α),
+        stream_equiv s s' → k s = k' s'),
+    stream_cps.cycle l hl k = k' (stream.cycle₂ l hl) :=
+begin
+  intros l hl k k' hks,
+  cases' l,
+  { apply absurd rfl hl, },
+  {
+    rw stream_cps.cycle,
+    have hf : ∀{α β : Type _}, (λ (x : α × list α × α × list α) (k : α → β), k (stream.cycle_f x)) = stream_cps.cycle_f := 
+    begin
+      intros α β,
+      apply funext,
+      intro x,
+      apply funext,
+      intro k,
+      -- To make rw work, we have to expand out the tuple fully
+      cases' x,
+      cases' snd,
+      cases' snd,
+      rw [stream_cps.cycle_f, stream.cycle_f],
+    end,
+    have hg: ∀{α β : Type _}, (λ (x : α × list α × α × list α) (k : α × list α × α × list α → β), k (stream.cycle_g x)) = stream_cps.cycle_g := 
+    begin
+      intros α β,
+      apply funext,
+      intro x,
+      apply funext,
+      intro k,
+      cases' x,
+      cases' snd,
+      cases' snd,
+      cases' fst_1,
+      { refl, },
+      { rw [stream_cps.cycle_g, stream.cycle_g], },
+    end,
+    -- It would be really nice to jump from here to corec_cps_equiv_corec.
+    -- Unfortunately, our f and g aren't in the right form, and we'd need to
+    -- introduce another axiom (namely, funext) to swap them out.
+    rw [←hf, ←hg],
+    rw (corec_cps_equiv_corec stream.cycle_f stream.cycle_g (hd, l, hd, l) k k' hks),
+    rw stream.cycle₂,
+  }
+end
 
 /-
 ## 3.2. CPS Functions on Non-CPS Streams
