@@ -1,4 +1,4 @@
-# Non-Monadic Continuation Passing Style in Lean
+# Continuation Passing Style in Lean
 
 For this project, I implemented a variety of continuation-passing-style
 functions over common datatypes and proved their equivalence with non-CPS
@@ -13,13 +13,19 @@ opted to consider CPS "purely," rather than in the context of Lean's system of
 monads. To keep this project focused, and to work toward a thorough
 understanding of the format of these proofs, I concentrated on specific
 instances of CPS equivalences and observing the patterns therein, rather than
-attempting to jump straight to metaprogramming.
+attempting to jump straight to metaprogramming, with the hope that familiarizing
+myself with the properties of this proofs would more effectively allow me to
+recognize the commonalities among them.
 
 Each section of my project is contained within a Lean file. Due to restrictions
 on importable file names, the files are "lettered" rather than numbered (i.e.,
 `A_lists.lean` corresponds to §1. Lists). Additionally, a summary of the data
 structures and algorithms I considered, along with some highlights from each, is
-provided below.
+provided below. Finally, each file contains comments throughout each section,
+summarizing the intent and methodology (and hopefully making some of the more
+abstruse code a bit more digestible) in each portion of the project.
+
+Unfortunately, I was unable to finish the 
 
 ## A Table of Contents
 

@@ -3,6 +3,24 @@ import tactic.ring_exp  -- for split_ifs
 
 set_option pp.generalized_field_notation false
 
+/-
+# 4. CPS Transformation
+In this section, we define a naïve CPS transform over the untyped lambda
+calculus (with variable bindings implemented using de Bruijn indexing, rather
+than the string-based approach we saw in a previous exercise sheet) in both CPS
+and direct style. We then prove that the CPS implementation is equivalent to the
+non-CPS implementation. Lastly, we prove that the CPS transforms preserve
+program behavior with a trailing identity continuation.
+
+Unfortunately, I was only able to complete the first two portions of this:
+implementing the CPS CPS transform (`cps_transform_cps`) and direct-style CPS
+transform (`cps_transform`) and proving their equivalence
+(`cps_transform_cps_equiv_cps_transform`). I began work on the `transform_spec`
+proof, but was not able to complete it in time for the project deadline. As a
+result, this file is a bit rough around the edges -- it is still a work in
+progress.
+-/
+
 inductive term
 | var : ℕ → term
 | lam : term → term
@@ -69,7 +87,6 @@ def cps_transform_cps {α : Sort _} : term → (term → α) → α
 -- The parameter is the variable to substitute in; the next argument is the
 -- current binder depth (initially 0); and the last argument is the term into
 -- which we're substituting
--- TODO: do we need to worry about de Bruijn indices here?
 def subst_helper (vval : term) : ℕ → term → term
 | vid (var n) := if n = vid then vval else var n
 | vid (lam b) := lam (subst_helper (vid + 1) b)

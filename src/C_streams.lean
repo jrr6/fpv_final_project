@@ -394,8 +394,8 @@ def cycle₂ : Π (l : list α), l ≠ [] → stream α
 end stream
 
 -- And now to **prove** it all works...
--- (I finally have to break my "no-axioms" rule...to take advantage of the other
--- lemmas, we have to use `funext` to substitute lambdas). This proof is doable
+-- I finally have to break my "no-axioms" rule...to take advantage of the other
+-- lemmas, we have to use `funext` to substitute lambdas. This proof is doable
 -- without `funext`, of course, but it would end up duplicating a lot of the
 -- previous lemmas (which we wouldn't be able to apply)
 lemma cycle_cps_equiv_cycle {α β γ : Type _} :
