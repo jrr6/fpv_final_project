@@ -371,27 +371,6 @@ def stream_cps.cycle {α β γ : Type _} :
                                           (by apply list.no_confusion)
                                           (λs, s n (λel, r ++ [el])))
 
--- FIXME: This is a terrible workaround
--- Sadly, the Lean authors decided to make the implementation of `cycle` depend
--- on some private functions that we can't write proofs about, so we have to
--- rewrite our own version `cycle₂` with accessible definitions here (this is
--- just a copy-paste from the library with the name of `cycle` switched to avoid
--- conflicts)
-namespace stream
-variables {α : Type _}
--- auxiliary def for cycle corecursive def
-def cycle_f : α × list α × α × list α → α
-| (v, _, _, _) := v
-
--- auxiliary def for cycle corecursive def
-def cycle_g : α × list α × α × list α → α × list α × α × list α
-| (v₁, [],              v₀, l₀) := (v₀, l₀, v₀, l₀)
-| (v₁, list.cons v₂ l₂, v₀, l₀) := (v₂, l₂, v₀, l₀)
-
-def cycle₂ : Π (l : list α), l ≠ [] → stream α
-| []              h := absurd rfl h
-| (list.cons a l) h := corec cycle_f cycle_g (a, l, a, l)
-end stream
 
 -- And now to **prove** it all works...
 -- I finally have to break my "no-axioms" rule...to take advantage of the other
@@ -402,7 +381,7 @@ lemma cycle_cps_equiv_cycle {α β γ : Type _} :
   ∀ (l : list α) (hl : l ≠ []) (k : @stream_cps α β → γ) (k' : stream α → γ)
     (hks : ∀(s : stream_cps α) (s' : stream α),
         stream_equiv s s' → k s = k' s'),
-    stream_cps.cycle l hl k = k' (stream.cycle₂ l hl) :=
+    stream_cps.cycle l hl k = k' (stream.cycle l hl) :=
 begin
   intros l hl k k' hks,
   cases' l,
@@ -446,7 +425,7 @@ begin
     rw [←hf, ←hg],
     rw (corec_cps_equiv_corec stream.cycle_f stream.cycle_g (hd, l, hd, l) k k'
           hks),
-    rw stream.cycle₂,
+    rw stream.cycle,
   }
 end
 
