@@ -18,7 +18,9 @@ transform (`cps_transform`) and proving their equivalence
 (`cps_transform_cps_equiv_cps_transform`). I began work on the `transform_spec`
 proof, but was not able to complete it in time for the project deadline. As a
 result, this file is a bit rough around the edges -- it is still a work in
-progress.
+progress. (I think there's a fair chance that there may be some bugs in the
+transform -- after all, the fact that the CPS and non-CPS versions are
+equivalent doesn't preclude there being the same bugs in both!)
 -/
 
 inductive term
@@ -239,11 +241,15 @@ lemma transform_spec : ∀ (t : term)
             end,
             have hstep1 : step (app (lam (lam (app (var 0) (var 1)))) (lam (var 0))) (lam (app (var 0) (lam (var 0)))) := step.app,
             -- TODO: something's not right...hstep1 doesn't step to the goal...
+            sorry,
           },
           { apply false.elim (h rfl), }
-        }
-      }
-    }
+        },
+        sorry
+      },
+      repeat { sorry },
+    },
+    repeat { sorry },
     /-
     cases' (cps_transform b),
     {
@@ -268,7 +274,9 @@ lemma transform_spec : ∀ (t : term)
 | (app f (app g y)) ht t' k hstep :=
   begin
     rw cps_transform,
+    sorry,
   end
+| _ _ _ _ _ := sorry
 /-
 begin
   intros t t' ht' hstep,
