@@ -89,7 +89,7 @@ begin
      ... = (λxs', k (llist.cons (f x) xs')) (map f xs) : ih f (λxs', k
                                                          (llist.cons (f x) xs'))
      ... = k (llist.cons (f x) (map f xs)) : rfl
-     ... = k (map f (llist.cons x xs)) : by rw ←map
+     ... = k (map f (llist.cons x xs)) : rfl
   }
 end
 
@@ -172,7 +172,7 @@ begin
             : rfl
      ... = k (if p x then llist.cons x (filter p xs) else filter p xs)
             : by apply ite_distro
-     ... = k (filter p (llist.cons x xs)) : by rw ←filter
+     ... = k (filter p (llist.cons x xs)) : rfl
   }
 end
 
@@ -260,7 +260,7 @@ begin
          = foldr_cps g z xs (λz', k (g x z')) : rfl
      ... = (λz', k (g x z')) (foldr g z xs) : ih g z (λz', k (g x z'))
      ... = k (g x (foldr g z xs)) : rfl
-     ... = k (foldr g z (llist.cons x xs)) : by rw foldr
+     ... = k (foldr g z (llist.cons x xs)) : rfl
   }
 end
 
