@@ -101,7 +101,7 @@ end
 -- Note that the `drop` lemma, unlike `cons_cps_equiv_cons`, isn't biconditional
 lemma drop_equiv_not_bicond :
   -- TODO: why can't it be `Type _`?
-  ¬(∀ α β : Type, ∀ (s_cps : @stream_cps α β) (s : stream α) (n : ℕ),
+  ¬(∀ (α β : Type) (s_cps : @stream_cps α β) (s : stream α) (n : ℕ),
     stream_equiv (stream_cps.drop n s_cps) (stream.drop n s)
       → stream_equiv s_cps s) :=
 begin
@@ -184,7 +184,8 @@ end
 -- implement two helper functions: a CPS version of the natural number recursor
 -- (so that `corec` can be fully-CPS) and an iterator function that will "seed"
 -- our stream with input values to the generator function, over which we will
--- then `map` the generator
+-- then `map` the generator. This approach mirrors that taken by the mathlib
+-- implementation of direct-style streams
 
 -- We first implement a new natural-number rec_on that's in CPS
 -- (I'm drawing the line at "type-level CPS" -- we'll leave the `motive`
@@ -192,16 +193,15 @@ end
 def nat.rec_on_cps : Π {α : Sort _} {motive : ℕ → Sort _} (n : ℕ),
   motive 0 →
   (Π (n : ℕ), motive n → (motive n.succ → α) → α) →
-  (motive n → α)
-  → α
+  (motive n → α) → α
 | α motive 0 val0 fn_succ k := k val0
 | α motive (nat.succ n) val0 fn_succ k :=
     nat.rec_on_cps n val0 fn_succ (λv_prev, fn_succ n v_prev k)
 
 /-
-This function got...interesting. To see what's going on, here are
-implementations using the regular nat recursor (or an analogue) in SML (which
-I think is a bit easier to parse in this instance) and Lean.
+This iterator function turned out to be pretty involved. To see what's going on,
+here are implementations using the regular nat recursor (or an analogue) in SML
+(which I find a bit easier to parse in this instance) and Lean.
 
 SML:
 ```
@@ -212,9 +212,8 @@ fun stream_cps_iterate (f : 'a -> ('a -> 'b) -> 'b)
                        (outer_k : ('a, 'b) stream_cps -> 'c) = outer_k
 (fn (n : int) => fn (k : 'a -> 'b) => let
   val rec res = (fn 0 => (fn (k' : 'a -> 'b) => k' a)
-                  | n' => (fn (k' : 'a -> 'b) => res (n - 1)
-                                                  (fn (prev : 'a) => f prev k'))
-                )
+                  | n' => (fn (k' : 'a -> 'b) =>
+                            res (n - 1) (fn (prev : 'a) => f prev k')))
 in
   res n k
 end)
@@ -237,7 +236,6 @@ outer_k (λ(n : ℕ) (k : α → β),
 For wrapping your head around the full-CPS version, it's helpful to consider
 that `motive n = ((α → β) → β)`, so `fn_succ` has type `(((α → β) → β) → γ) → γ`
 -/
-
 def stream_cps.iterate {α β γ : Type _} (f : α → (α → β) → β)
                                         (a : α)
                                         (outer_k : @stream_cps α β → γ) : γ :=
@@ -250,13 +248,12 @@ outer_k (λ(n : ℕ) (k : α → β),
               (λnth_el_accessor, nth_el_accessor k)
                  -- the motive type takes a continuation; we ultimately need to
                  -- produce a β, so we use k to pass the value from the nat
-                 -- recursion to the stream caller (but since here we're
-                 -- effectively getting )
+                 -- recursion to the stream caller
 )
 
--- This is the analogue of the corecursor term `stream.corec`. The library
--- implementation is a bit weird, but to make my proofs a little less painful,
--- I've decided just to mirror their dual-argument approach
+-- This is the analogue of the corecursor term `stream.corec`. As mentioned,
+-- this implementation mirror's the library's dual-argument approach, which
+-- makes the proofs to come (a little) less painful
 def stream_cps.corec {α β γ δ : Type _} (f : α → (β → γ) → γ)
                                       (g : α → (α → γ) → γ) :
                                       α → (stream_cps β → δ) → δ :=
@@ -303,13 +300,11 @@ begin
   rw ←(@nat_rec_on_cps_equiv_nat_rec_on β α),
   rw stream.iterate,
   dsimp only,
-  -- FIXME: I really don't think we should need induction given that
-  -- n_r_o_c_e_n_r_o "handles" the induction for us
+  -- It feels like this induction shouldn't be necessary since
+  -- n_r_o_c_e_n_r_o handles the induction for us.
   induction' n,
   { refl },
-  {
-    rw ←(ih f a k k' hks),
-  },
+  { rw ←(ih f a k k' hks) },
 end
 
 lemma corec_cps_equiv_corec {α β γ δ : Type _} :
@@ -367,7 +362,7 @@ def stream_cps.cycle {α β γ : Type _} :
 #eval @nat.rec_on (λ_, list ℕ)
                   20
                   []
-                  (λn r, stream_cps.cycle [1, 9, 5, 1, 120]
+                  (λn r, stream_cps.cycle [1, 9, 5, 1, 88]
                                           (by apply list.no_confusion)
                                           (λs, s n (λel, r ++ [el])))
 
@@ -419,9 +414,6 @@ begin
       { refl, },
       { rw [stream_cps.cycle_g, stream.cycle_g], },
     end,
-    -- It would be really nice to jump from here to corec_cps_equiv_corec.
-    -- Unfortunately, our f and g aren't in the right form, and we'd need to
-    -- introduce another axiom (namely, funext) to swap them out.
     rw [←hf, ←hg],
     rw (corec_cps_equiv_corec stream.cycle_f stream.cycle_g (hd, l, hd, l) k k'
           hks),
@@ -432,10 +424,7 @@ end
 /-
 ## 3.3. CPS Functions on Non-CPS Streams
 For completeness, we can also consider a more traditional case: our functions
-are in CPS, and we abstract away the datatype. (Note that it wouldn't be very
-intersting to have a "CPS functions on CPS streams" section since the only
-meaningful notions of equivalence would involve reducing CPS calls to
-direct-style ones by passing `id` as a continuation.)
+are in CPS, and we leave our streams in direct style.
 
 Unfortunately, this turned out to be relatively uninteresting -- since streams
 aren't inductively defined, the CPS functions essentially amount to applying a
