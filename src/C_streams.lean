@@ -97,37 +97,43 @@ begin
   }
 end
 
-
 -- Note that the `drop` lemma, unlike `cons_cps_equiv_cons`, isn't biconditional
+-- We provide the following counterexample (let "C<...>" denote a CPS stream and
+-- ≡ the CPS/non-CPS stream equivalence relation):
+-- C<4, 3, 3, ...> ≢ <2, 3, 3, ...> even though
+-- (drop_cps 1 C<4, 3, 3, ...>) ≡ <3, 3, ...> = (drop 1 <2, 3, 3, ...>)
 lemma drop_equiv_not_bicond :
-  -- TODO: why can't it be `Type _`?
-  ¬(∀ (α β : Type) (s_cps : @stream_cps α β) (s : stream α) (n : ℕ),
+  ¬(∀ (α β : Type _) (s_cps : @stream_cps α β) (s : stream α) (n : ℕ),
     stream_equiv (stream_cps.drop n s_cps) (stream.drop n s)
       → stream_equiv s_cps s) :=
 begin
   intro h,
-  let s_cps := @stream_cps.cons ℕ ℕ 4 (stream_cps.const 3),
-  let s := stream.cons 2 (stream.const 3),
+  let s_cps := @stream_cps.cons (ulift ℕ) (ulift ℕ)
+                                (ulift.up 4) (stream_cps.const (ulift.up 3)),
+  let s := stream.cons (ulift.up 2) (stream.const (ulift.up 3)),
 
   have h_drop_equiv :
-    stream_equiv (stream_cps.drop 1 s_cps) (stream.drop 1 s) :=
-    λ_ _, rfl,
+    stream_equiv (stream_cps.drop 1 s_cps) (stream.drop 1 s) := λ_ _, rfl,
 
   have h_not_equiv : ¬(stream_equiv s_cps s) :=
   begin
     intro h_s_cps_equiv_s,
     dsimp only [s, s_cps] at h_s_cps_equiv_s,  -- expands s and s_cps defns
-    have h_equiv_at_0 := h_s_cps_equiv_s 0 id,
-    rw [stream.const, stream.cons, stream_cps.const, stream_cps.cons, id]
+    -- for the continuation, instead of just `id`, we have to do some universe
+    -- trickery since we can't assume that `u₁ = u₂`
+    have h_equiv_at_0 := h_s_cps_equiv_s 0 (ulift.up ∘ ulift.down),
+    rw [stream.const, stream.cons, stream_cps.const, stream_cps.cons]
       at h_equiv_at_0,
     dsimp only at h_equiv_at_0,
-    rw [stream.cons._match_1, stream_cps.cons._match_1, id] at h_equiv_at_0,
+    rw [stream.cons._match_1, stream_cps.cons._match_1, function.comp] at h_equiv_at_0,
+    dsimp only at h_equiv_at_0,
     -- Because where's the fun in using the simplifier?
-    apply (@nat.no_confusion false 2 4 h_equiv_at_0)
-          (λh', (@nat.no_confusion false 1 3 h') (λh'', nat.no_confusion h'')),
+    exact (@ulift.no_confusion ℕ false {down := 2} {down := 4} h_equiv_at_0)
+            (λh2eq4, (@nat.no_confusion false 2 4 h2eq4)
+              (λh', (@nat.no_confusion false 1 3 h')
+                (λh'', nat.no_confusion h'')))
   end,
-  have h_for_contra := h ℕ ℕ (@stream_cps.cons ℕ ℕ 4 (stream_cps.const 3))
-                             (stream.cons 2 (stream.const 3)),
+  have h_for_contra := h (ulift ℕ) (ulift ℕ) s_cps s,
   exact absurd (h_for_contra 1 h_drop_equiv) h_not_equiv,
 end
 
