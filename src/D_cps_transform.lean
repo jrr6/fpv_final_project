@@ -4,7 +4,7 @@ import tactic.ring_exp  -- for split_ifs
 set_option pp.generalized_field_notation false
 
 /-
-# 4. CPS Transformation
+# 4. (Work in Progress) CPS Transformation
 In this section, we define a naïve CPS transform over the untyped lambda
 calculus (with variable bindings implemented using de Bruijn indexing, rather
 than the string-based approach we saw in a previous exercise sheet) in both CPS
@@ -67,7 +67,8 @@ def cps_transform_cps_match_helper {α : Sort _} : term → (term → α) → α
 def incr_indices_cps {α : Sort _} : term → (term → α) → α
 | (var n) k := k (var (n + 1))
 | (lam b) k := incr_indices_cps b (λb', k (lam b'))
-| (app f x) k := incr_indices_cps f (λf', incr_indices_cps x (λx', k (app f' x')))
+| (app f x) k := incr_indices_cps f
+                   (λf', incr_indices_cps x (λx', k (app f' x')))
 
 def cps_transform_cps {α : Sort _} : term → (term → α) → α
 | (var x) k := k (var x)
@@ -177,6 +178,10 @@ lemma cps_transform_cps_equiv_cps_transform {α : Sort _} :
     refl,
   end
 
+--------------------------------------------------------------------------------
+/-           From here onward is basically an untested first draft            -/
+--------------------------------------------------------------------------------
+
 -- A predicate enforcing the constraint that a term can only have de Bruijn
 -- indices matching the number of nested binders at any given depth (the ℕ
 -- parameter)
@@ -195,8 +200,9 @@ def valid_vars := valid_vars_at_depth 0
 
 def not_free_var (t : term) := ¬∃n, t = var n
 -- Now we prove that the non-CPS transform does what it's supposed to
--- FIX(ED...I think)ME: this spec isn't nearly good enough. We need to be able to use IHs
--- about intermediate terms, so the var/lam cases need to say something useful
+-- FIX(ED...I think)ME: this spec isn't nearly good enough. We need to be able
+-- to use IHs about intermediate terms, so the var/lam cases need to say
+-- something useful
 -- lemma transform_spec : ∀ (t : term) (t' : term) (ht' : is_value t'), 
 --   step t t' → step (app (cps_transform t) id_term) t'
 -- Take 2 - New spec:
@@ -240,7 +246,7 @@ lemma transform_spec : ∀ (t : term)
               sorry,
             end,
             have hstep1 : step (app (lam (lam (app (var 0) (var 1)))) (lam (var 0))) (lam (app (var 0) (lam (var 0)))) := step.app,
-            -- TODO: something's not right...hstep1 doesn't step to the goal...
+            -- FIXME: something's not right...hstep1 doesn't step to the goal...
             sorry,
           },
           { apply false.elim (h rfl), }
@@ -305,7 +311,7 @@ begin
   },
   case lam {
     cases' hstep,
-    -- TODO: this also feels wrong - we should have some spec for where t (= t')
+    -- this also feels wrong - we should have some spec for where t (= t')
     -- is already a value
   },
   case app : t1 t2 ih_t1 ih_t2 {
@@ -314,12 +320,12 @@ begin
     {
       rw cps_transform,
       
-      -- TODO: maybe the IH goes here?
+      -- maybe the IH goes here?
       rw cps_transform,
       rw (ih_t1),
       rw cps_transform.incr_indices,
     }
-    -- Use an IH? IDK?
+    -- Use an IH?
   }
 end
 -/
