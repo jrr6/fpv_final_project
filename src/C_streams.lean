@@ -258,7 +258,7 @@ outer_k (λ(n : ℕ) (k : α → β),
 )
 
 -- This is the analogue of the corecursor term `stream.corec`. As mentioned,
--- this implementation mirror's the library's dual-argument approach, which
+-- this implementation mirrors the library's dual-argument approach, which
 -- makes the proofs to come (a little) less painful
 def stream_cps.corec {α β γ δ : Type _} (f : α → (β → γ) → γ)
                                       (g : α → (α → γ) → γ) :
