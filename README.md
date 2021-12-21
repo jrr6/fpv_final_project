@@ -165,6 +165,9 @@ they're an excellent exercise.
 
 ## (Work in Progress) CPS Transformation
 
+(Because this work is ongoing and still rough around the edges, it has been
+moved to the `development` branch of this repository.)
+
 This portion of the project is still a work in progress -- there are almost
 certainly still a plethora of bugs, slightly-off theorem statements, and
 less-than-optimal design choices. The basic idea was to (1) define (very simple)
